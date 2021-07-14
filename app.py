@@ -6,8 +6,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 plt.style.use('ggplot')
 
-# Connect to an existing database
-conn = psycopg2.connect("dbname=postgres user=sejaldua")
+# Initialize connection.
+# Uses st.cache to only run once.
+@st.cache(allow_output_mutation=True, hash_funcs={"_thread.RLock": lambda _: None})
+def init_connection():
+    return psycopg2.connect(**st.secrets["postgres"])
+
+conn = init_connection()
 
 st.markdown("""
 ```sql
