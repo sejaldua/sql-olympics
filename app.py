@@ -40,8 +40,14 @@ ORDER BY COUNT(*) DESC
 """
 pop_sports = sqlio.read_sql_query(sql, conn)['sport']
 
+# get all regions / countries
 sql = """
-SELECT DISTINCT name, height, weight, noc, 
+SELECT DISTINCT region FROM noc_regions
+"""
+regions = sqlio.read_sql_query(sql, conn)['region']
+
+sql = """
+SELECT DISTINCT name, height, weight, region, 
     SUM(CASE medal
         WHEN 'Gold' THEN 1
         ELSE 0
@@ -55,15 +61,25 @@ SELECT DISTINCT name, height, weight, noc,
         ELSE 0
         END) AS num_bronze
 FROM olympics
-WHERE sport = '{}' AND sex = '{}'
+LEFT OUTER JOIN noc_regions
+ON olympics.noc = noc_regions.noc
+WHERE sport = '{}' AND sex = '{}' AND region in {}
 GROUP BY 
-  name, height, weight, noc
-ORDER BY num_gold DESC;
+  name, height, weight, region
+ORDER BY num_gold DESC
+LIMIT 200;
 """
 col1, col2 = st.beta_columns(2)
 with col1:
     selected_sport = st.selectbox('Sports', pop_sports)
 with col2:
     sex = st.selectbox('Sex', ['F', 'M'])
-df = sqlio.read_sql_query(sql.format(selected_sport, sex), conn)
+regions = str(tuple(st.multiselect('Regions', regions, ['USA', 'Japan', 'China'])))
+df = sqlio.read_sql_query(sql.format(selected_sport, sex, regions), conn)
 st.dataframe(df)
+clean_df = df[(df.height != 'NA') & (df.weight != 'NA')]
+clean_df['weight'] = clean_df['weight'].astype('float')
+clean_df['height'] = clean_df['height'].astype('float')
+fig, ax = plt.subplots(figsize=(10, 6))
+ax = sns.scatterplot(data=clean_df, x='height', y='weight', hue='region')
+st.write(fig)
